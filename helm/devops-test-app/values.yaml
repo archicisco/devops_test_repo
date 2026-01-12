@@ -10,11 +10,6 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
-
 podAnnotations: {}
 
 podSecurityContext:
@@ -30,24 +25,10 @@ securityContext:
   readOnlyRootFilesystem: false
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 80
   targetPort: 8000
-
-ingress:
-  enabled: false
-  className: "nginx"
-  annotations: {}
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
-  hosts:
-    - host: devops-test.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
-  #  - secretName: devops-test-tls
-  #    hosts:
-  #      - devops-test.local
+  nodePort: 30080
 
 resources:
   limits:
@@ -56,13 +37,6 @@ resources:
   requests:
     cpu: 250m
     memory: 256Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
 
 persistence:
   enabled: true
