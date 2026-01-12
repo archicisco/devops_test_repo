@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, engine, Base
 from app.models import User
 from app.schema import UserCreate, UserUpdate
 
-
+# Создаем таблицы при старте приложения
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 

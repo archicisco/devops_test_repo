@@ -7,6 +7,8 @@ WORKDIR /app
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    python3-dev \
+    linux-libc-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better layer caching
