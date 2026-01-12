@@ -4,6 +4,8 @@
 
 FastAPI application with complete CI/CD pipeline and Kubernetes deployment configuration.
 
+**✨ Latest update:** Simplified CI/CD with single-arch builds and main branch only.
+
 ## 📖 Overview
 
 This repository contains a FastAPI-based user management application with:
