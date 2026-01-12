@@ -7,10 +7,10 @@ FastAPI application with complete CI/CD pipeline and Kubernetes deployment confi
 ## 📖 Overview
 
 This repository contains a FastAPI-based user management application with:
-- Docker containerization
+- Docker containerization with multi-stage builds
 - Automated CI/CD with GitHub Actions
-- Kubernetes deployment (Helm + manifests)
-- Security best practices
+- Kubernetes deployment (Helm chart + plain manifests)
+- Security scanning with Trivy
 - Complete documentation
 
 ## 🚀 Quick Start
@@ -24,12 +24,17 @@ docker run -p 8000:8000 ghcr.io/archicisco/devops_test_repo:latest
 Access the API at http://localhost:8000/docs
 
 ### Deploy to Kubernetes:
-```bash
-# Using the deploy script
-./deploy.sh
 
-# Or manually with Helm
-helm install devops-test-app ./helm/devops-test-app --namespace devops-test --create-namespace
+**Option 1: Using Helm**
+```bash
+helm install devops-test-app ./helm/devops-test-app \
+  --namespace devops-test \
+  --create-namespace
+```
+
+**Option 2: Using Kubernetes manifests**
+```bash
+kubectl apply -f k8s/
 ```
 
 ## 📁 Repository Structure
@@ -42,7 +47,7 @@ helm install devops-test-app ./helm/devops-test-app --namespace devops-test --cr
 │   └── schema.py          # Pydantic schemas
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml      # GitHub Actions pipeline
+│       └── ci-cd.yml      # GitHub Actions CI/CD pipeline
 ├── helm/
 │   └── devops-test-app/   # Helm chart
 │       ├── Chart.yaml
@@ -52,94 +57,101 @@ helm install devops-test-app ./helm/devops-test-app --namespace devops-test --cr
 │   ├── namespace.yaml
 │   ├── deployment.yaml
 │   ├── service.yaml
-│   ├── ingress.yaml
 │   └── pvc.yaml
 ├── Dockerfile             # Multi-stage Docker build
 ├── .dockerignore          # Docker build exclusions
-├── build.sh              # Build script
-├── deploy.sh             # Deployment script
 ├── requirements.txt       # Python dependencies
-├── main.py               # FastAPI application
-└── DEPLOYMENT.md         # Detailed deployment guide
+├── main.py               # FastAPI application entry point
+├── DEPLOYMENT.md         # Detailed deployment guide
+└── README.md             # This file
 ```
 
 ## 🔨 Building
 
-### Using the build script:
+### Using Docker CLI:
 ```bash
 # Build image
-./build.sh
-
-# Build with custom tag
-IMAGE_TAG=v1.0.0 ./build.sh
-
-# Build and push
-PUSH_IMAGE=true ./build.sh
-```
-
-### Manual build:
-```bash
 docker build -t ghcr.io/archicisco/devops_test_repo:latest .
-docker push ghcr.io/archicisco/devops_test_repo:latest
+
+# Run locally
+docker run -p 8000:8000 ghcr.io/archicisco/devops_test_repo:latest
 ```
+
+### Automated via GitHub Actions:
+The CI/CD pipeline automatically builds and pushes images on:
+- Push to `master` branch
+- New version tags (e.g., `v1.0.0`)
+- Pull requests
+- Manual workflow dispatch
 
 ## 🎮 Deployment
 
-### Option 1: Automated Script
+### Helm Deployment
 ```bash
-# Deploy with Helm (default)
-./deploy.sh
-
-# Deploy with Kubernetes manifests
-DEPLOYMENT_TYPE=k8s ./deploy.sh
-
-# Deploy specific version
-IMAGE_TAG=v1.0.0 ./deploy.sh
-```
-
-### Option 2: Helm
-```bash
+# Install
 helm install devops-test-app ./helm/devops-test-app \
   --namespace devops-test \
-  --create-namespace \
-  --set image.tag=latest
+  --create-namespace
+
+# Upgrade
+helm upgrade devops-test-app ./helm/devops-test-app \
+  --namespace devops-test
+
+# Uninstall
+helm uninstall devops-test-app --namespace devops-test
 ```
 
-### Option 3: Kubernetes Manifests
+### Kubernetes Manifests Deployment
 ```bash
+# Deploy all resources
 kubectl apply -f k8s/
+
+# Check status
+kubectl get all -n devops-test
+
+# Delete
+kubectl delete -f k8s/
+```
+
+### Access the Application
+```bash
+# Port-forward to access locally
+kubectl port-forward -n devops-test svc/devops-test-app 8000:80
+
+# Access API
+curl http://localhost:8000/users/
+```
+
+For minikube users:
+```bash
+# Get service URL
+minikube service devops-test-app -n devops-test --url
 ```
 
 ## 📋 CI/CD Pipeline
 
 The GitHub Actions pipeline automatically:
-1. ✅ Builds Docker images
+1. ✅ Builds Docker images (multi-arch: amd64/arm64)
 2. ✅ Pushes to GitHub Container Registry (ghcr.io)
-3. ✅ Scans for vulnerabilities with Trivy
-4. ✅ Creates multi-arch images (amd64/arm64)
-5. ✅ Generates build attestations
+3. ✅ Generates build attestations
+4. ✅ Scans for vulnerabilities with Trivy
+5. ✅ Uploads security results to GitHub Security tab
 
-### Triggers:
-- Push to `main`/`master` branch
-- New version tags (e.g., `v1.0.0`)
-- Pull requests
-- Manual workflow dispatch
-
-### Image Tags:
-- `latest` - main branch
-- `v1.0.0` - version tags
-- `main-abc1234` - branch + commit SHA
-- `pr-123` - pull requests
+### Image Tags Strategy:
+- `latest` - latest commit on master branch
+- `master-<sha>` - specific commit on master
+- `v1.0.0` - semantic version tags
+- `v1.0` - major.minor version tags
 
 ## 🔐 Security Features
 
 - ✅ Multi-stage builds for minimal image size
 - ✅ Non-root user (UID 1000)
 - ✅ Security context with dropped capabilities
-- ✅ Vulnerability scanning (Trivy)
-- ✅ Read-only root filesystem support
+- ✅ Trivy vulnerability scanning in CI/CD
 - ✅ Resource limits configured
-- ✅ Health checks implemented
+- ✅ Liveness and readiness probes
+- ✅ Persistent storage for database
 
 ## 📊 API Endpoints
 
@@ -153,17 +165,19 @@ The GitHub Actions pipeline automatically:
 | GET | `/docs` | Swagger UI |
 | GET | `/redoc` | ReDoc documentation |
 
-## 🛠️ Development
+## 🛠️ Local Development
 
-### Local Development:
+### Setup:
 ```bash
+# Clone repository
+git clone https://github.com/archicisco/devops_test_repo.git
+cd devops_test_repo
+
 # Install dependencies
 pip install -r requirements.txt
 
 # Run application
 uvicorn main:app --reload
-
-# Access at http://localhost:8000
 ```
 
 ### Testing the API:
@@ -178,62 +192,43 @@ curl -X POST http://localhost:8000/users/ \
 
 # Get specific user
 curl http://localhost:8000/users/1
+
+# Update user
+curl -X PUT http://localhost:8000/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Jane Doe","email":"jane@example.com"}'
+
+# Delete user
+curl -X DELETE http://localhost:8000/users/1
 ```
 
-## 📚 Documentation
-
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide with troubleshooting
-- **API Docs**: Available at `/docs` when running
-- **Helm Chart**: See `helm/devops-test-app/README.md` (if created)
-
-## 🔍 Monitoring
+## 🔍 Monitoring & Debugging
 
 ### Check deployment status:
 ```bash
+# View all resources
+kubectl get all -n devops-test
+
+# Check pods
 kubectl get pods -n devops-test
-kubectl get svc -n devops-test
+
+# View pod details
+kubectl describe pod -n devops-test <pod-name>
 ```
 
 ### View logs:
 ```bash
+# Stream logs from all pods
 kubectl logs -n devops-test -l app=devops-test-app -f
-```
 
-### Port-forward for local access:
-```bash
-kubectl port-forward -n devops-test svc/devops-test-app 8000:80
-```
-
-## 🐛 Troubleshooting
-
-Common issues and solutions are documented in [DEPLOYMENT.md](./DEPLOYMENT.md#-troubleshooting).
-
-Quick checks:
-```bash
-# Check pod status
-kubectl describe pod -n devops-test <pod-name>
-
-# Check logs
+# Logs from specific pod
 kubectl logs -n devops-test <pod-name>
-
-# Check service
-kubectl get svc -n devops-test
 ```
 
-## 📈 Scaling
-
-### Manual scaling:
+### Check persistent storage:
 ```bash
-kubectl scale deployment devops-test-app -n devops-test --replicas=5
-```
-
-### Auto-scaling (via Helm):
-```yaml
-autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
+kubectl get pvc -n devops-test
+kubectl describe pvc -n devops-test devops-test-app-pvc
 ```
 
 ## 🧪 Testing in Kubernetes
@@ -241,12 +236,15 @@ autoscaling:
 ### Using minikube:
 ```bash
 # Start minikube
-minikube start
+minikube start --driver=docker
 
 # Deploy application
-./deploy.sh
+kubectl apply -f k8s/
 
-# Access via minikube
+# Access via port-forward
+kubectl port-forward -n devops-test svc/devops-test-app 8000:80
+
+# Or use minikube service
 minikube service devops-test-app -n devops-test
 ```
 
@@ -259,39 +257,106 @@ kind create cluster
 kind load docker-image ghcr.io/archicisco/devops_test_repo:latest
 
 # Deploy
-./deploy.sh
+kubectl apply -f k8s/
 ```
 
-## 🤝 Contributing
+## 📈 Helm Configuration
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Key values you can customize in `helm/devops-test-app/values.yaml`:
+
+```yaml
+# Number of replicas
+replicaCount: 2
+
+# Image configuration
+image:
+  repository: ghcr.io/archicisco/devops_test_repo
+  tag: "latest"
+
+# Service configuration
+service:
+  type: NodePort
+  nodePort: 30080
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Persistent storage
+persistence:
+  enabled: true
+  size: 1Gi
+```
+
+## 📚 Documentation
+
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Detailed deployment guide with troubleshooting
+- **[GITHUB_SETUP.md](./GITHUB_SETUP.md)** - GitHub configuration instructions (local file)
+- **[QUICKSTART.md](./QUICKSTART.md)** - Quick start guide (local file)
+- **API Documentation**: Available at `/docs` endpoint when application is running
+
+## 🐛 Troubleshooting
+
+### Image Pull Issues
+```bash
+# Make GitHub package public or create image pull secret
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=archicisco \
+  --docker-password=<your-github-token> \
+  --namespace=devops-test
+```
+
+### Pod Not Starting
+```bash
+# Check pod events
+kubectl describe pod -n devops-test <pod-name>
+
+# Check logs
+kubectl logs -n devops-test <pod-name>
+```
+
+### Database Issues
+```bash
+# Check PVC is bound
+kubectl get pvc -n devops-test
+
+# Verify mount in pod
+kubectl exec -n devops-test <pod-name> -- ls -la /app/data
+```
 
 ## 📝 Requirements Checklist
 
-- ✅ **Dockerfile** - Multi-stage build with best practices
-- ✅ **Build Pipeline** - GitHub Actions with multi-arch support
-- ✅ **Kubernetes Deployment** - Both Helm and manifests provided
-- ✅ **Documentation** - Complete deployment and troubleshooting guide
-- ✅ **Security** - Vulnerability scanning, non-root user, security context
-- ✅ **CI/CD** - Automated build, test, and push
-- ✅ **Monitoring** - Health checks and readiness probes
+- ✅ **Dockerfile** - Multi-stage build with security best practices
+- ✅ **Build Pipeline** - GitHub Actions with multi-arch support (amd64/arm64)
+- ✅ **Kubernetes Deployment** - Both Helm chart and plain manifests
+- ✅ **Documentation** - Complete setup and deployment guides
+- ✅ **Security** - Trivy scanning, non-root user, security contexts
+- ✅ **CI/CD** - Automated build, scan, and publish pipeline
+- ✅ **Health Checks** - Liveness and readiness probes configured
 
-## 📄 License
+## 📄 Technical Stack
 
-This project is part of a DevOps technical assessment.
+- **Application**: Python 3.11, FastAPI, SQLAlchemy, SQLite
+- **Container**: Docker multi-stage builds
+- **Orchestration**: Kubernetes 1.34+, Helm 3.x
+- **CI/CD**: GitHub Actions
+- **Registry**: GitHub Container Registry (ghcr.io)
+- **Security**: Trivy vulnerability scanner
 
 ## 🙋 Support
 
-For questions or issues:
-- Check [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed guides
-- Review GitHub Actions logs for CI/CD issues
-- Check Kubernetes pod logs for runtime issues
+For issues or questions:
+- Check [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions
+- Review [GitHub Actions logs](https://github.com/archicisco/devops_test_repo/actions) for CI/CD issues
+- Check pod logs: `kubectl logs -n devops-test -l app=devops-test-app`
 - Open an issue in this repository
 
 ---
 
-**Made with ❤️ for the DevOps Assessment**
+**DevOps Technical Assessment** | FastAPI + Docker + Kubernetes + GitHub Actions
